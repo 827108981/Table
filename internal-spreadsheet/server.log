@@ -1,0 +1,19 @@
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 572-152-070
+(533) wsgi starting up on http://0.0.0.0:5000
+(533) accepted ('127.0.0.1', 34338)
+127.0.0.1 - - [14/Apr/2026 06:56:37] "GET /login HTTP/1.1" 200 5061 0.006229
+(533) accepted ('127.0.0.1', 34340)
+127.0.0.1 - - [14/Apr/2026 06:56:40] "POST /login HTTP/1.1" 200 395 0.235134
+(533) accepted ('127.0.0.1', 34342)
+/workspace/internal-spreadsheet/backend/app.py:50: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  return User.query.get(int(user_id))
+127.0.0.1 - - [14/Apr/2026 06:56:41] "GET /api/user HTTP/1.1" 200 159 0.019438
+(533) accepted ('127.0.0.1', 34344)
+127.0.0.1 - - [14/Apr/2026 06:56:44] "POST /api/spreadsheet HTTP/1.1" 200 155 0.101319
+(533) accepted ('127.0.0.1', 34346)
+127.0.0.1 - - [14/Apr/2026 06:56:46] "GET /api/spreadsheets HTTP/1.1" 200 305 0.004533
+(533) accepted ('127.0.0.1', 34348)
+127.0.0.1 - - [14/Apr/2026 06:56:49] "GET /api/spreadsheet/1/data HTTP/1.1" 200 2857 0.006536
+默认管理员用户已创建: admin / admin123
