@@ -1,0 +1,42 @@
+写一个爬虫代码，爬取网站https://msps.mindray.com/，
+1. 自动登录，填充用户名：likebo@mindray.com  密码：Bool1413
+2. 登录后
+直接访问url: https://msps.mindray.com/nR5cGUiOiJMMiIsInZpZXdOYW1lIjoicmVwb3J0LnJlcG9ydD9yZXBvcnRDb2RlPXF1YWxpdHlJbXByb3ZlIiwidGFiTmFtZSI6Iui0qOmHj+S4iuWNhyIsImFjdGl2ZSI6ZmFsc2UsIm1lbnVDb2RlIjoibTM4MDIiLCJyb3V0ZVBhcmFtIjp7InJlcG9ydENvZGUiOiJxdWFsaXR5SW1wcm92ZSJ9fSx7InR5cGUiOiJMMiIsInZpZXdOYW1lIjoicmVwb3J0LnJlcG9ydD9yZXBvcnRDb2RlPWFjdGl2aXR5aGVhZGVycmVwb3J0IiwidGFiTmFtZSI6IuW3peWNleaKpeihqCIsImFjdGl2ZSI6dHJ1ZSwibWVudUNvZGUiOiJwMjkwMSIsInJvdXRlUGFyYW0iOnsicmVwb3J0Q29kZSI6ImFjdGl2aXR5aGVhZGVycmVwb3J0In19XQ==#/W3sidHlwZSI6IkwyIiwidmlld05hbWUiOiJyZXBvcnQucmVwb3J0P3JlcG9ydENvZGU9d29ya29yZGVyIiwidGFiTmFtZSI6IuW3peWNleS7u+WKoSIsImFjdGl2ZSI6ZmFsc2UsInJvdXRlUGFyYW0iOnsicmVwb3J0Q29kZSI6IndvcmtvcmRlciJ9fSx7InR5cGUiOiJMMiIsInZpZXdOYW1lIjoicmVwb3J0LnJlcG9ydD9yZXBvcnRDb2RlPWFjdGl2aXR5aGVhZGVycmVwb3J0IiwidGFiTmFtZSI6IuW3peWNleaKpeihqCIsImFjdGl2ZSI6dHJ1ZSwibWVudUNvZGUiOiJwMjkwMSIsInJvdXRlUGFyYW0iOnsicmVwb3J0Q29kZSI6ImFjdGl2aXR5aGVhZGVycmVwb3J0In19XQ==
+			
+定位到“工单状态”一栏，定位完成后需要点击倒三角下拉框选择“服务执行中-SR48”,“创建日期-开始”一栏如果有内容的话清空，“服务子类”点击倒三角下拉框选择“维修-0301”，最后点击右侧“执行”按钮
+抓取下方的工单报表中的数据，需要抓取的数据规则如下：
+1. 针对列"VIP客户等级"为IVD VIP1的，列“持续时长/h”大于8的；
+2. 针对列"VIP客户等级"为IVD VIP2 和 IVD VIP3的，列“持续时长/h”大于4的；
+抓取完成后形成EXCEL
+
+
+
+改下py文件以及html，要求从工单报表Excel文件中提取出来每行中以下列的信息：工单号 服务工程师 产品型号 创建时间 预约完成时间 业务描述。把提取出来的信息放进一个二维数组中，每个数组里面是多个字典，字典的第一个键代表工单编号，值就是工单号列的内容，第二个键代表产品类型，值就是产品型号，第三个键代表设备型号，值就是产品型号，其中产品型号这一列的内容中有多个字段，每两个字段之间由空格隔开，取第一个字段即可；第四个键代表服务工程师，值就是服务工程师，第五个键代表创建时间，值就是创建时间，第六个键代表预计完成时间，值就是预约完成时间。第七个键就是医院地址，值就是业务描述所在的列，列中的内容有多个字段，每两个字段之间用空格分开，只取第二个字段即可。把所有的这些信息都保存到json文件中，供html使用，其中html中标注的地点就是第七个键值的内容。另外当鼠标选中那个地图上的地点时，要显示以下内容：工单编号，产品类型，设备型号，服务工程师，创建时间，预计完成时间。这些内容从json获取
+
+
+引入同步机制：
+使用 threading.Event() 来实现线程间同步
+前端服务会等待首次数据爬取完成后才启动
+执行流程：
+步骤1：启动数据爬取模块，进行登录和首次数据抓取
+步骤2：爬虫完成首次抓取后，通知前端服务
+步骤3：前端服务处理首次爬取的数据，生成JSON
+步骤4：启动HTTP服务器并打开浏览器
+步骤5：进入持续监控模式，每30秒检查数据更新
+关键改进：
+✅ 前端只有在数据爬取完成后才启动
+✅ 确保JSON文件有真实数据后才渲染界面
+✅ 避免前端加载空白数据的问题
+✅ 爬虫持续在后台运行，每10分钟抓取一次
+✅ 数据处理模块持续监控文件变化，自动更新JSON
+
+
+启动 → 打开登录页面 (端口8081)
+用户登录 → 保存凭证 → 启动爬虫
+爬虫自动登录MSP → 爬取数据 → 保存Excel
+数据处理模块 → 提取数据 → 生成JSON
+启动前端服务器 (端口8080) → 打开dashboard
+每10分钟自动重新爬取 → 自动更新前端
+端口分配：
+8081: 登录服务器（LoginHandler）
+8080: 前端静态文件服务器（dashboard.html）

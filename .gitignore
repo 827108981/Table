@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+
+# PyInstaller
+build/
+dist/
+*.spec.backup
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 数据文件（包含敏感业务数据）
+hospital_data.json
+工单报表数据/
+工单报表爬取日志.txt
+工单报表_*.xlsx
+*.xlsx
+
+# 发布版本（打包产物，体积大）
+发布版本/
+Windows 发布版本/
+
+# 日志
+*.log
+logs/
+
+# 临时文件
+temp/
+tmp/
+
+# 历史 PPT（按需决定是否推送）
+*.pptx
+
+# 其他临时文档
+msp 数据爬取 promote.txt
+login.html
+test_*.py

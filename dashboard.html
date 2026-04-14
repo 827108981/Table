@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迈瑞中国区技术支持数据中心 - 实时大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/js/china.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #0a0e27; color: #fff; overflow: hidden; }
+
+        /* 顶部栏 */
+        .top-bar { height: 50px; background: #0d1529; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; border-bottom: 2px solid #00d4ff; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .top-title { font-size: 20px; font-weight: bold; color: #00d4ff; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,212,255,0.3); }
+
+        /* 按钮通用样式 */
+        .voice-btn, .action-btn {
+            background: rgba(0, 212, 255, 0.1); border: 1px solid #00d4ff; color: #00d4ff;
+            padding: 6px 16px; border-radius: 20px; cursor: pointer; font-size: 14px;
+            transition: 0.3s; display: flex; align-items: center; gap: 8px; font-weight: bold;
+        }
+        .voice-btn:hover, .action-btn:hover { background: rgba(0, 212, 255, 0.2); transform: scale(1.02); }
+        .voice-btn.active { background: #ff3232; border-color: #ff3232; color: #fff; animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 5px #ff3232; } 50% { box-shadow: 0 0 20px #ff3232; } }
+
+        /* 导出按钮 */
+        .export-btn { background: rgba(0, 200, 100, 0.15); border: 1px solid #00c864; color: #00c864; }
+        .export-btn:hover { background: rgba(0, 200, 100, 0.3); }
+
+        /* 全屏按钮 */
+        .fullscreen-btn { background: rgba(255, 200, 0, 0.15); border: 1px solid #ffc800; color: #ffc800; }
+        .fullscreen-btn:hover { background: rgba(255, 200, 0, 0.3); }
+
+        /* 截屏按钮 */
+        .screenshot-btn { background: rgba(200, 100, 255, 0.15); border: 1px solid #c864ff; color: #c864ff; }
+        .screenshot-btn:hover { background: rgba(200, 100, 255, 0.3); }
+
+        /* 数据新鲜度指示器 */
+        .freshness-indicator {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            padding: 4px 12px; border-radius: 15px; transition: 0.3s;
+            background: rgba(255,255,255,0.05);
+        }
+        .freshness-indicator:hover { background: rgba(255,255,255,0.1); }
+        .freshness-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+        .freshness-dot.green { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .freshness-dot.yellow { background: #ffa500; box-shadow: 0 0 10px #ffa500; }
+        .freshness-dot.red { background: #ff3232; box-shadow: 0 0 10px #ff3232; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .freshness-text { font-size: 12px; color: #8892b0; }
+
+        /* 滚动告警条 */
+        .ticker-wrap { width: 100%; height: 36px; background: rgba(255, 50, 50, 0.15); border-bottom: 1px solid #ff3232; display: flex; align-items: center; overflow: hidden; }
+        .ticker-content { display: inline-block; white-space: nowrap; animation: ticker 25s linear infinite; color: #ff6b6b; font-size: 15px; padding-left: 100%; }
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+
+        /* 布局 */
+        .main-container { display: grid; grid-template-columns: 340px 1fr; gap: 15px; padding: 15px; height: calc(100vh - 86px); }
+        .left-panel { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 5px; }
+        .panel-section { background: rgba(26, 35, 66, 0.8); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 10px; padding: 15px; }
+        .panel-title { font-size: 16px; color: #00d4ff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-left: 3px solid #00d4ff; padding-left: 10px; }
+
+        /* 统计卡片 */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-card { background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.1); border-radius: 8px; padding: 12px; text-align: center; }
+        .stat-label { font-size: 12px; color: #8892b0; }
+        .stat-value { font-size: 28px; font-weight: bold; color: #00d4ff; margin: 5px 0; }
+        .stat-value.red { color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 50, 50, 0.5); animation: flash-text 1s infinite; }
+        .stat-value.orange { color: #ffa500; }
+        @keyframes flash-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+        /* 列表样式 */
+        .list-container { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+        .list-item { background: rgba(255, 255, 255, 0.03); padding: 10px; border-radius: 6px; border-left: 3px solid #444; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .list-item.critical { border-left-color: #ff3232; background: rgba(255, 50, 50, 0.15); animation: flash-bg 1.5s infinite; }
+        .list-item.urgent { border-left-color: #ffa500; }
+        @keyframes flash-bg { 0%, 100% { background: rgba(255, 50, 50, 0.15); } 50% { background: rgba(255, 50, 50, 0.3); } }
+
+        /* 地图与表格 */
+        .right-panel { display: flex; flex-direction: column; gap: 15px; height: 100%; }
+        .map-wrapper { flex: 1.2; background: #0d1529; border: 1px solid #1e3a5f; border-radius: 10px; position: relative; }
+        #chinaMap { width: 100%; height: 100%; }
+
+        .bottom-panel { flex: 0.8; background: #0d1529; border: 1px solid #1e3a5f; border-radius: 10px; padding: 10px; overflow-y: auto; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { padding: 10px; text-align: left; font-size: 14px; color: #00d4ff; border-bottom: 2px solid #1e3a5f; background: #0a0e27; position: sticky; top: 0; }
+        .data-table td { padding: 10px; font-size: 13px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .data-table tr.critical td { color: #ff3232; background: rgba(255,50,50,0.1); }
+        .data-table tr.urgent td { color: #ffa500; }
+
+        #trendChart { width: 100%; height: 90px; margin-top: 5px; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+
+        /* 热点省份提示 */
+        .hotspot-toast {
+            position: fixed; top: 60px; right: 20px; background: rgba(13, 21, 41, 0.95);
+            border: 1px solid #00d4ff; border-radius: 8px; padding: 12px 20px;
+            color: #fff; font-size: 14px; z-index: 1000; display: none;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+        }
+        .hotspot-toast.show { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <!-- 顶部栏 -->
+    <div class="top-bar">
+        <div class="top-title">🏥 迈瑞中国区技术支持数据中心 - 实时监控</div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <!-- 数据新鲜度指示器 -->
+            <div class="freshness-indicator" onclick="loadData()" title="点击手动刷新">
+                <div class="freshness-dot" id="freshnessDot"></div>
+                <span class="freshness-text" id="freshnessText">数据正常</span>
+            </div>
+            <div style="color: #8892b0; font-size: 13px;">
+                🕒 <span id="lastUpdate">--:--:--</span>
+            </div>
+            <button class="action-btn export-btn" onclick="exportReport()">📥 导出</button>
+            <button class="action-btn screenshot-btn" onclick="takeScreenshot()">📸 截屏</button>
+            <button class="action-btn fullscreen-btn" onclick="toggleFullscreen()">🖥️ 全屏</button>
+            <button id="voiceToggle" class="voice-btn" onclick="toggleVoice()">🔇 语音</button>
+        </div>
+    </div>
+
+    <!-- 热点省份提示 -->
+    <div class="hotspot-toast" id="hotspotToast">🎯 自动聚焦：<span id="hotspotProvince"></span></div>
+
+    <!-- 滚动条 -->
+    <div class="ticker-wrap">
+        <div class="ticker-content" id="tickerContent">🚨 系统初始化中，等待数据接入...</div>
+    </div>
+
+    <div class="main-container" id="dashboardContent">
+        <!-- 左侧 -->
+        <div class="left-panel">
+            <div class="panel-section">
+                <div class="panel-title">📊 核心指标</div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">异常工单总数</div><div class="stat-value red" id="totalOrders">0</div></div>
+                    <div class="stat-card"><div class="stat-label">平均超时时长</div><div class="stat-value orange" id="avgTimeout">0h</div></div>
+                    <div class="stat-card"><div class="stat-label">最严重超时</div><div class="stat-value red" id="maxTimeout">0h</div></div>
+                    <div class="stat-card"><div class="stat-label">涉及省份</div><div class="stat-value" id="provinceCount">0</div></div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">⚠️ 最紧急 TOP5</div>
+                <div class="list-container" id="top5List"></div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">🔧 产品类型分布 (TOP5)</div>
+                <div id="productPieChart" style="width:100%;height:220px;"></div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">📈 趋势监控</div>
+                <div id="trendChart"></div>
+            </div>
+        </div>
+
+        <!-- 右侧 -->
+        <div class="right-panel">
+            <div class="map-wrapper"><div id="chinaMap"></div></div>
+            <div class="bottom-panel">
+                <table class="data-table">
+                    <thead><tr><th>排名</th><th>医院</th><th>产品</th><th>工程师</th><th>超时</th><th>状态</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let hospitalData = [];
+        let mapChart = null;
+        let trendChart = null;
+        let productPieChart = null;
+        let voiceEnabled = false;
+        let lastMaxHours = 0;
+        let lastAlertTime = 0;
+        let lastDataTime = null; // 记录最后数据加载时间
+        let hotspotLock = false; // 热点锁定状态
+
+        // 省份坐标映射（用于地图聚焦）
+        const provinceCoords = {
+            '湖北': [112.27, 31.15], '广东': [113.26, 23.13], '四川': [104.06, 30.67],
+            '北京': [116.40, 39.90], '上海': [121.47, 31.23], '江苏': [118.78, 32.06],
+            '浙江': [120.15, 30.28], '山东': [117.00, 36.65], '河南': [113.65, 34.76],
+            '湖南': [112.94, 28.23], '安徽': [117.27, 31.86], '福建': [119.30, 26.08],
+            '江西': [115.89, 28.68], '河北': [114.48, 38.03], '陕西': [108.94, 34.34],
+            '重庆': [106.55, 29.56], '云南': [102.73, 25.04], '广西': [108.33, 22.84],
+            '贵州': [106.71, 26.57], '山西': [112.55, 37.87], '天津': [117.20, 39.13],
+            '甘肃': [103.83, 36.06], '内蒙古': [111.65, 40.82], '新疆': [87.68, 43.77],
+            '黑龙江': [126.63, 45.75], '吉林': [125.35, 43.88], '辽宁': [123.43, 41.80],
+            '海南': [110.35, 20.02], '宁夏': [106.27, 38.47], '青海': [101.74, 36.56],
+            '西藏': [91.11, 29.97]
+        };
+
+        // 语音控制
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            const btn = document.getElementById('voiceToggle');
+            if (voiceEnabled) {
+                btn.classList.add('active');
+                btn.innerHTML = '🔊 语音';
+                speak("语音播报已开启");
+                setTimeout(() => {
+                    if (voiceEnabled && hospitalData.length > 0) {
+                        const top = hospitalData[0];
+                        speak(`紧急提醒，${top.name} 工单已超时 ${top.timeoutHours} 小时，请 ${top.服务工程师} 立即处理。`);
+                    }
+                }, 2500);
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '🔇 语音';
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function speak(text) {
+            if (!voiceEnabled || !window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 1.0;
+            utterance.volume = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 更新数据新鲜度指示器
+        function updateFreshness() {
+            const dot = document.getElementById('freshnessDot');
+            const text = document.getElementById('freshnessText');
+            
+            if (!lastDataTime) {
+                dot.className = 'freshness-dot yellow';
+                text.innerText = '等待数据...';
+                return;
+            }
+            
+            const minutes = (Date.now() - lastDataTime) / 1000 / 60;
+            
+            if (minutes < 5) {
+                dot.className = 'freshness-dot green';
+                text.innerText = '数据正常';
+            } else if (minutes < 15) {
+                dot.className = 'freshness-dot yellow';
+                text.innerText = `延迟 ${Math.floor(minutes)} 分钟`;
+            } else {
+                dot.className = 'freshness-dot red';
+                text.innerText = `异常 ${Math.floor(minutes)} 分钟`;
+            }
+        }
+
+        async function loadData() {
+            try {
+                const res = await fetch('hospital_data.json?t=' + Date.now());
+                hospitalData = await res.json();
+                hospitalData.sort((a, b) => (b.timeoutHours || 0) - (a.timeoutHours || 0));
+                
+                lastDataTime = Date.now(); // 记录加载时间
+                updateFreshness();
+                
+                if (voiceEnabled && hospitalData.length > 0) {
+                    const currentMax = hospitalData[0].timeoutHours;
+                    const now = Date.now();
+                    if ((currentMax > lastMaxHours || now - lastAlertTime > 60000) && currentMax > 30) {
+                        const top = hospitalData[0];
+                        speak(`紧急提醒，${top.name} 工单已超时 ${top.timeoutHours} 小时，请 ${top.服务工程师} 立即处理。`);
+                        lastMaxHours = currentMax;
+                        lastAlertTime = now;
+                    }
+                }
+                
+                updateAll();
+                
+                // 自动聚焦热点省份（非锁定状态下）
+                if (!hotspotLock) {
+                    focusHotspotProvince();
+                }
+            } catch (e) { console.error('加载失败', e); }
+        }
+
+        // 自动聚焦热点省份
+        function focusHotspotProvince() {
+            if (hospitalData.length === 0) return;
+            
+            // 统计各省工单数
+            const provinceCount = {};
+            hospitalData.forEach(item => {
+                const name = item.name;
+                for (const prov in provinceCoords) {
+                    if (name.includes(prov)) {
+                        provinceCount[prov] = (provinceCount[prov] || 0) + 1;
+                        break;
+                    }
+                }
+            });
+            
+            // 找到工单最多的省份
+            const sorted = Object.entries(provinceCount).sort((a, b) => b[1] - a[1]);
+            if (sorted.length === 0) return;
+            
+            const [hotProvince, count] = sorted[0];
+            
+            // 如果该省工单数 >= 3 且不是全国视图，则聚焦
+            if (count >= 3 && provinceCoords[hotProvince]) {
+                const [lng, lat] = provinceCoords[hotProvince];
+                
+                // 显示提示
+                const toast = document.getElementById('hotspotToast');
+                document.getElementById('hotspotProvince').innerText = `${hotProvince} (${count}单)`;
+                toast.classList.add('show');
+                
+                // 地图聚焦动画
+                if (mapChart) {
+                    mapChart.setOption({
+                        geo: {
+                            zoom: 1.8,
+                            center: [lng, lat],
+                            roam: true
+                        }
+                    });
+                }
+                
+                // 5 秒后恢复全国视图
+                setTimeout(() => {
+                    if (!hotspotLock && mapChart) {
+                        mapChart.setOption({
+                            geo: { zoom: 1.1, center: [104, 36] }
+                        });
+                    }
+                    toast.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        function updateAll() {
+            updateStats();
+            renderTop5();
+            renderMap();
+            renderTable();
+            updateTicker();
+            updateTrend();
+            renderProductPie();
+        }
+
+        function updateStats() {
+            const hours = hospitalData.map(i => i.timeoutHours || 0);
+            const avg = hours.length ? (hours.reduce((a,b)=>a+b,0)/hours.length).toFixed(1) : 0;
+            const max = hours.length ? Math.max(...hours).toFixed(1) : 0;
+            const provs = new Set(hospitalData.map(i => {
+                const p = i.name;
+                if(p.includes('湖北')) return '湖北'; if(p.includes('广东')) return '广东'; if(p.includes('四川')) return '四川';
+                return '其他';
+            }));
+
+            document.getElementById('totalOrders').innerText = hospitalData.length;
+            document.getElementById('avgTimeout').innerText = avg + 'h';
+            document.getElementById('maxTimeout').innerText = max + 'h';
+            document.getElementById('provinceCount').innerText = provs.size;
+        }
+
+        function renderTop5() {
+            const list = document.getElementById('top5List');
+            list.innerHTML = '';
+            hospitalData.slice(0, 5).forEach((item, i) => {
+                list.innerHTML += `<div class="list-item ${item.type}">
+                    <div><b>${i+1}. ${item.name.substring(0,6)}...</b><br><span style="font-size:11px;color:#888">👤 ${item.服务工程师}</span></div>
+                    <span style="font-weight:bold; color:${item.type==='critical'?'#ff3232':'#ffa500'}">${item.timeoutHours}h</span>
+                </div>`;
+            });
+        }
+
+        function renderMap() {
+            if (!mapChart) mapChart = echarts.init(document.getElementById('chinaMap'));
+            mapChart.setOption({
+                tooltip: { trigger: 'item', formatter: p => `
+                    <div style="padding: 10px; min-width: 220px;">
+                        <b style="font-size:15px;color:#00d4ff">${p.name}</b><br>
+                        <span style="color:#ff6b6b;font-weight:bold">超时: ${p.data.timeoutHours}h</span><br>
+                        <hr style="border-color:#333;margin:6px 0">
+                        👨‍ 工程师: ${p.data.engineer || '未知'}<br>
+                        🔧 产品: ${p.data.product || '未知'}<br>
+                        🏢 分公司: ${p.data.branch || '未知'}<br>
+                        📋 状态: ${p.data.status || '未知'}<br>
+                        🕒 创建: ${p.data.orderCreateTime || '未知'}
+                    </div>` },
+                geo: { map: 'china', roam: true, zoom: 1.1, center: [104, 36], label: { show: true, color: '#555', fontSize: 9 },
+                    itemStyle: { areaColor: '#111827', borderColor: '#00d4ff', borderWidth: 0.5 },
+                    regions: [{name:'湖北',itemStyle:{areaColor:'#1e3a5f'}},{name:'广东',itemStyle:{areaColor:'#1b4e3d'}},{name:'四川',itemStyle:{areaColor:'#4e3b1b'}}]
+                },
+                series: [{ type: 'effectScatter', coordinateSystem: 'geo',
+                    data: hospitalData.map((i, idx) => ({
+                        name: i.name, value: i.value, timeoutHours: i.timeoutHours,
+                        engineer: i.服务工程师, product: i.产品类型, branch: i.分公司, status: i.工单状态, orderCreateTime: i.工单创建时间,
+                        itemStyle: { color: i.type==='critical'?'#ff3232': i.type==='urgent'?'#ffa500': '#ffcc00' },
+                        symbolOffset: [(idx % 5 - 2) * 3, (Math.floor(idx / 5) - 1) * 3]
+                    })),
+                    symbolSize: val => Math.max(12, val[2] * 10),
+                    rippleEffect: { scale: 4, period: 3 }
+                }]
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            hospitalData.forEach((item, i) => {
+                tbody.innerHTML += `<tr class="${item.type}">
+                    <td>${i+1}</td><td>${item.name}</td><td>${item.产品类型}</td><td>${item.服务工程师}</td>
+                    <td style="color:${item.type==='critical'?'#ff3232':'#ffa500'}">${item.timeoutHours}h</td>
+                    <td>${item.type==='critical'?'🔴 严重':item.type==='urgent'?'🟠 紧急':'🟡 一般'}</td>
+                </tr>`;
+            });
+        }
+
+        function updateTicker() {
+            const top = hospitalData.slice(0,3).map(i => `🚨 ${i.name} (${i.timeoutHours}h)`).join('  ||  ');
+            document.getElementById('tickerContent').innerText = top || '✅ 暂无异常';
+        }
+
+        function updateTrend() {
+            if (!trendChart) trendChart = echarts.init(document.getElementById('trendChart'));
+            let h = JSON.parse(localStorage.getItem('trend') || '[]');
+            const k = new Date().getHours();
+            if (!h.length || h[h.length-1].k !== k) h.push({k, v: hospitalData.length});
+            if (h.length > 20) h.shift();
+            localStorage.setItem('trend', JSON.stringify(h));
+            trendChart.setOption({
+                grid: {left:30, right:10, top:10, bottom:20},
+                xAxis: {data: h.map(i=>i.k+'h'), axisLine:{lineStyle:{color:'#333'}}},
+                yAxis: {splitLine:{lineStyle:{color:'#222'}}},
+                series: [{data: h.map(i=>i.v), type:'line', smooth:true, areaStyle:{opacity:0.3}, itemStyle:{color:'#00d4ff'}}]
+            });
+        }
+
+        function exportReport() {
+            if (hospitalData.length === 0) { alert('暂无数据可导出'); return; }
+            const headers = ['排名', '医院名称', '产品类型', '服务工程师', '超时时长 (h)', '紧急程度', '分公司', '工单状态', '工单创建时间'];
+            const rows = hospitalData.map((item, i) => [
+                i + 1, `"${item.name}"`, `"${item.产品类型 || ''}"`, `"${item.服务工程师 || ''}"`,
+                item.timeoutHours || 0, item.type === 'critical' ? '严重超时' : item.type === 'urgent' ? '紧急超时' : '一般超时',
+                `"${item.分公司 || ''}"`, `"${item.工单状态 || ''}"`, `"${item.工单创建时间 || ''}"`
+            ]);
+            let csvContent = '\ufeff' + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+            const filename = `异常工单报表_${timestamp}.csv`;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            const btn = document.querySelector('.export-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ 已导出';
+            btn.style.background = 'rgba(0, 200, 100, 0.4)';
+            setTimeout(() => { btn.innerHTML = originalText; btn.style.background = ''; }, 2000);
+        }
+
+        // ========== 新增：一键截屏 ==========
+        function takeScreenshot() {
+            const btn = document.querySelector('.screenshot-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ 截屏中...';
+            
+            const content = document.getElementById('dashboardContent');
+            html2canvas(content, {
+                backgroundColor: '#0a0e27',
+                scale: 2, // 高清截图
+                useCORS: true,
+                logging: false
+            }).then(canvas => {
+                const link = document.createElement('a');
+                const now = new Date();
+                const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+                link.download = `迈瑞数据中心大屏_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                btn.innerHTML = '✅ 已保存';
+                btn.style.background = 'rgba(200, 100, 255, 0.4)';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('截屏失败:', err);
+                btn.innerHTML = '❌ 失败';
+                setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+            });
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.warn('无法进入全屏模式:', err));
+            } else { document.exitFullscreen(); }
+        }
+
+        function renderProductPie() {
+            if (!productPieChart) productPieChart = echarts.init(document.getElementById('productPieChart'));
+
+            const productCount = {};
+            hospitalData.forEach(item => {
+                const type = item.产品类型 || '未知';
+                productCount[type] = (productCount[type] || 0) + 1;
+            });
+            const sorted = Object.entries(productCount).sort((a, b) => b[1] - a[1]);
+
+            let pieData = sorted.slice(0, 5).map(([name, value]) => ({ name, value }));
+            const otherCount = sorted.slice(5).reduce((sum, item) => sum + item[1], 0);
+            if (otherCount > 0) pieData.push({ name: '其他', value: otherCount });
+
+            productPieChart.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: {c} 单 ({d}%)' },
+                legend: {
+                    orient: 'vertical', right: 10, top: 'center',
+                    textStyle: { color: '#fff', fontSize: 12 },
+                    formatter: function(name) {
+                        const data = productPieChart.getOption().series[0].data;
+                        const item = data.find(d => d.name === name);
+                        return item ? `${name}  ${item.value}单` : name;
+                    }
+                },
+                series: [{
+                    type: 'pie', radius: ['45%', '75%'], center: ['35%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderRadius: 5, borderColor: '#0a0e27', borderWidth: 2 },
+                    label: { show: false }, labelLine: { show: false },
+                    data: pieData,
+                    color: ['#ff6b6b', '#ffa500', '#ffcc00', '#00d4ff', '#00ff88', '#888']
+                }]
+            });
+        }
+
+        window.onload = () => {
+            loadData();
+            // 每秒更新时间
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('lastUpdate').innerText = now.toLocaleTimeString('zh-CN', { hour12: false });
+            }, 1000);
+            // 每 10 秒更新新鲜度状态
+            setInterval(updateFreshness, 10000);
+        };
+        window.onresize = () => { mapChart?.resize(); trendChart?.resize(); productPieChart?.resize(); };
+        setInterval(loadData, 15000);
+
+        // 表格自动滚动
+        setInterval(() => {
+            const tablePanel = document.querySelector('.bottom-panel');
+            if (tablePanel && tablePanel.scrollHeight > tablePanel.clientHeight) {
+                const maxScroll = tablePanel.scrollHeight - tablePanel.clientHeight;
+                if (tablePanel.scrollTop >= maxScroll - 10) tablePanel.scrollTop = 0;
+                else tablePanel.scrollTop += 35;
+            }
+        }, 6000);
+    </script>
+</body>
+</html>
