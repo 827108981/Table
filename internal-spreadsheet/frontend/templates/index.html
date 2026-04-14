@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内部在线表格 - 首页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .username {
+            font-size: 14px;
+        }
+        
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .toolbar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .btn-create {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn-create:hover {
+            transform: translateY(-2px);
+        }
+        
+        .spreadsheets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .spreadsheet-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .spreadsheet-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .spreadsheet-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        
+        .spreadsheet-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .spreadsheet-meta {
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .spreadsheet-meta span {
+            display: block;
+            margin-top: 5px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .empty-state-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .empty-state-text {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-cancel {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .btn-confirm {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 内部在线表格</h1>
+        <div class="user-info">
+            <span class="username" id="current-user"></span>
+            <button class="btn-logout" onclick="logout()">退出登录</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="toolbar">
+            <h2 style="font-size: 18px; color: #333;">我的表格</h2>
+            <button class="btn-create" onclick="showCreateModal()">+ 新建表格</button>
+        </div>
+        
+        <div id="spreadsheets-list" class="spreadsheets-grid">
+            <!-- 表格列表将在这里渲染 -->
+        </div>
+    </div>
+    
+    <!-- 新建表格模态框 -->
+    <div id="create-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">新建表格</h3>
+            <input type="text" id="spreadsheet-name" class="modal-input" placeholder="请输入表格名称">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideCreateModal()">取消</button>
+                <button class="btn-confirm" onclick="createSpreadsheet()">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        let currentUser = null;
+        
+        // 获取当前用户信息
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/api/user');
+                const data = await response.json();
+                currentUser = data;
+                document.getElementById('current-user').textContent = `欢迎，${data.username}`;
+                loadSpreadsheets();
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        // 加载表格列表
+        async function loadSpreadsheets() {
+            try {
+                const response = await fetch('/api/spreadsheets');
+                const spreadsheets = await response.json();
+                
+                const container = document.getElementById('spreadsheets-list');
+                
+                if (spreadsheets.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📄</div>
+                            <div class="empty-state-text">还没有创建任何表格</div>
+                            <button class="btn-create" onclick="showCreateModal()">创建第一个表格</button>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = spreadsheets.map(s => `
+                        <div class="spreadsheet-card" onclick="openSpreadsheet(${s.id})">
+                            <div class="spreadsheet-icon">📊</div>
+                            <div class="spreadsheet-name">${escapeHtml(s.name)}</div>
+                            <div class="spreadsheet-meta">
+                                <span>创建者：${escapeHtml(s.owner)}</span>
+                                <span>更新于：${formatDate(s.updated_at)}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载表格列表失败:', error);
+            }
+        }
+        
+        // 打开表格
+        function openSpreadsheet(id) {
+            window.location.href = `/spreadsheet/${id}`;
+        }
+        
+        // 显示创建模态框
+        function showCreateModal() {
+            document.getElementById('create-modal').classList.add('active');
+            document.getElementById('spreadsheet-name').focus();
+        }
+        
+        // 隐藏创建模态框
+        function hideCreateModal() {
+            document.getElementById('create-modal').classList.remove('active');
+            document.getElementById('spreadsheet-name').value = '';
+        }
+        
+        // 创建表格
+        async function createSpreadsheet() {
+            const name = document.getElementById('spreadsheet-name').value.trim();
+            
+            if (!name) {
+                alert('请输入表格名称');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/spreadsheet', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    hideCreateModal();
+                    loadSpreadsheets();
+                } else {
+                    alert(data.message || '创建失败');
+                }
+            } catch (error) {
+                console.error('创建表格失败:', error);
+                alert('创建失败，请稍后重试');
+            }
+        }
+        
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch('/logout');
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('退出登录失败:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        // 辅助函数
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN');
+        }
+        
+        // 初始化
+        getCurrentUser();
+        
+        // 按 Enter 键创建表格
+        document.getElementById('spreadsheet-name').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                createSpreadsheet();
+            }
+        });
+    </script>
+</body>
+</html>
