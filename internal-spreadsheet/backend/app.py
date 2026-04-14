@@ -7,9 +7,17 @@ from datetime import datetime
 import json
 import os
 
+# 获取项目根目录
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+DB_PATH = os.path.join(DATA_DIR, 'spreadsheet.db')
+
+# 确保 data 目录存在
+os.makedirs(DATA_DIR, exist_ok=True)
+
 app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 app.config['SECRET_KEY'] = 'internal-spreadsheet-secret-key-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../data/spreadsheet.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
